@@ -18,7 +18,7 @@ This is >800 times faster than using ``skimage.feature.graycomatrix`` and ``gray
 because this is Cython optimized.
 
 With a *2000x1000x3* image, it takes around 2 minutes.
-Compared to a few hours with ``skimage``
+Compared to a **33 hours** with ``skimage``
 
 ```
 GLCM Progress: 100%|██████████| 12/12 [02:27<00:00, 12.30s/it]
