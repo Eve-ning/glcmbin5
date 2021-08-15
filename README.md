@@ -4,6 +4,10 @@
 
 **Photo by Flo Maderebner from Pexels**
 
+```
+pip install glcmbin5
+```
+
 ## Motivation
 
 There are 2 main improvements, speed and memory size
