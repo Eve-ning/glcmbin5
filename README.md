@@ -142,7 +142,7 @@ please kindly cite
 
 # Acknowledgements
 
-- Dr. Ji-Jon Sit for hosting the parent project `Eve-ning/FRModel` which lead to this algorithm
+- Dr. Ji-Jon Sit for hosting the parent project [`Eve-ning/FRModel`](https://github.com/Eve-ning/FRModel) which lead to this algorithm
 - Wang Ji Fei for discovering GLCM Binning optimization.
 - [GLCM Texture: A Tutorial v. 3.0 March 2017](https://prism.ucalgary.ca/handle/1880/51900) for providing a
 simple tutorial to guide this implementation.
