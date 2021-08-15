@@ -4,6 +4,10 @@
 
 [**Photo by Flo Maderebner from Pexels**](https://www.pexels.com/@fmaderebner)
 
+800 Times faster, the above image takes 5.7 Days to process, compared to 9.8 Minutes with `glcmbin5`
+
+*Performance will vary with devices*
+
 ```
 pip install glcmbin5
 ```
