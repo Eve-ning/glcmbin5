@@ -1,0 +1,8 @@
+README.md
+setup.py
+glcm/__init__.py
+glcmbin5.egg-info/PKG-INFO
+glcmbin5.egg-info/SOURCES.txt
+glcmbin5.egg-info/dependency_links.txt
+glcmbin5.egg-info/requires.txt
+glcmbin5.egg-info/top_level.txt
