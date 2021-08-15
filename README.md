@@ -2,7 +2,7 @@
 
 ![Result](result.jpg)
 
-**Photo by Flo Maderebner from Pexels**
+[**Photo by Flo Maderebner from Pexels**](https://www.pexels.com/@fmaderebner)
 
 ```
 pip install glcmbin5
@@ -35,6 +35,8 @@ the GLCM feature calculation. Memory used is freed asap.
 Plus, decreasing the GLCM size improves performance significantly.
 
 ## Example
+
+You can also see an example in [`/examples`](https://github.com/Eve-ning/glcm/tree/master/examples)
 
 ```python
 from glcm.glcm import CyGLCM
@@ -142,7 +144,7 @@ please kindly cite
 
 # Acknowledgements
 
-- Dr. Ji-Jon Sit for hosting the parent project [`Eve-ning/FRModel`](https://github.com/Eve-ning/FRModel) which lead to this algorithm
-- Wang Ji Fei for discovering GLCM Binning optimization.
+- [Dr. Ji-Jon Sit](https://dr.ntu.edu.sg/cris/rp/rp00175) for hosting the parent project [`Eve-ning/FRModel`](https://github.com/Eve-ning/FRModel) which lead to this algorithm
+- [Wang Ji Fei](https://fass.nus.edu.sg/geog/people/wang-jifei/) for discovering GLCM Binning optimization.
 - [GLCM Texture: A Tutorial v. 3.0 March 2017](https://prism.ucalgary.ca/handle/1880/51900) for providing a
 simple tutorial to guide this implementation.
