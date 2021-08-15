@@ -14,7 +14,7 @@ There are 2 main improvements, speed and memory size
 
 ### Speed
 
-This is **several magnitudes** faster than using ``skimage.feature.graycomatrix`` and ``graycoprops``
+This is >800 times faster than using ``skimage.feature.graycomatrix`` and ``graycoprops``
 because this is Cython optimized.
 
 With a *2000x1000x3* image, it takes around 2 minutes.
@@ -30,7 +30,7 @@ If you don't *bin* the array before calculating GLCM, you'll end up with an extr
 large GLCM.
 
 With this algorithm, I omit generating the whole GLCM, instead, it's integrated in
-the GLCM feature calculation. Memory used is freed asap. 
+the GLCM feature calculation. Memory used is freed asap.
 
 Plus, decreasing the GLCM size improves performance significantly.
 
@@ -148,3 +148,39 @@ please kindly cite
 - [Wang Ji Fei](https://fass.nus.edu.sg/geog/people/wang-jifei/) for discovering GLCM Binning optimization.
 - [GLCM Texture: A Tutorial v. 3.0 March 2017](https://prism.ucalgary.ca/handle/1880/51900) for providing a
 simple tutorial to guide this implementation.
+
+
+# Annex
+
+## Speed Comparison
+
+```python
+
+import time
+
+import PIL.Image
+import numpy as np
+from matplotlib import pyplot as plt
+from skimage.feature import greycomatrix, greycoprops
+#%%
+
+image = np.asarray(PIL.Image.open("sample.jpg"))[::2,::2,0]
+
+s = time.time()
+for i in range(10000):
+    glcm = greycomatrix(np.random.randint(0, 192, [5, 5]).astype(np.uint8), [1], [0])
+    g = greycoprops(glcm, 'contrast')
+    g = greycoprops(glcm, 'dissimilarity')
+    g = greycoprops(glcm, 'energy')
+    g = greycoprops(glcm, 'ASM')
+    g = greycoprops(glcm, 'correlation')
+
+e = time.time()
+
+# / 10000 for each window
+# 1116 * 1991 because the image has that many windows
+# 3 for 3 channels
+# /147 for 2m27s of my current timing
+# ~ 832.0464063705289
+print(((e-s) * 8 / 10000 * 1116 * 1991 * 3)/147)
+```
