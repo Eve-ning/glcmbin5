@@ -156,7 +156,7 @@ simple tutorial to guide this implementation.
 
 # Annex
 
-## Speed Comparison
+## Speed Benchmark with `skimage.feature.greycomatrix`
 
 ```python
 
