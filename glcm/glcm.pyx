@@ -65,7 +65,7 @@ cdef class CyGLCM:
         self.pairs = pairs
         self.verbose = verbose
 
-    @cython.boundscheck(False)
+    @cython.boundscheck(True)
     @cython.wraparound(False)
     def create_glcm(self):
         # This creates the mem_views
@@ -99,12 +99,21 @@ cdef class CyGLCM:
                     self._populate_glcm(direction[0], direction[1], features[:,:,ch,:])
                     pbar.update()
 
-        features[..., CONTRAST]    /= (self.diameter ** 2) * 2
-        features[..., ASM]         /= ((self.diameter ** 2) * 2) ** 2
-        features[..., CORRELATION] /= (self.diameter ** 2) * 2
+        # The following statements will rescale the features to [0,1]
+        # To fully understand why I do this, refer to my research journal.
+
+        features[..., CONTRAST]    /= self.diameter ** 2
+        features[..., ASM]         /= self.diameter ** 6
+        features[..., CORRELATION] /= self.diameter ** 2
+
+        # features[..., CONTRAST]    /= (self.bins - 1) ** 2
+        # features[..., MEAN]        /= self.bins - 1
+        # features[..., VAR]         /= (self.bins - 1) ** 2
+        # features[..., CORRELATION] = (features[..., CORRELATION] + 1) / 2
+
         return self.features / len(self.pairs)
 
-    @cython.boundscheck(False)
+    @cython.boundscheck(True)
     @cython.wraparound(False)
     def _populate_glcm(self,
                        np.ndarray[DTYPE_t8, ndim=4] windows_i,
@@ -129,7 +138,7 @@ cdef class CyGLCM:
                 self._populate_glcm_single(windows_i[wr, wc], windows_j[wr, wc], features[wr, wc])
 
 
-    @cython.boundscheck(False)
+    @cython.boundscheck(True)
     @cython.wraparound(False)
     def _populate_glcm_single(self,
                               np.ndarray[DTYPE_t8, ndim=2] window_i,
@@ -179,7 +188,7 @@ cdef class CyGLCM:
             for cc in range(self.diameter):
                 i = window_i[cr, cc]
                 j = window_j[cr, cc]
-                features[ASM] += glcm[cr, cc] ** 2
+                features[ASM] += (glcm[i, j] / 2) ** 2
                 var_i += (i - mean_i) ** 2
                 var_j += (j - mean_j) ** 2
 
@@ -197,12 +206,11 @@ cdef class CyGLCM:
                 j = window_j[cr, cc]
 
                 if std != 0.0:  # Will explode on 0.0
-                    features[CORRELATION] += glcm[cr, cc] * (i - mean_i) * (j - mean_j) / std
+                    features[CORRELATION] += (glcm[i, j] / 2) * (i - mean_i) * (j - mean_j) / std
                 else:
                     features[CORRELATION] += float("NaN")
 
-
-    @cython.boundscheck(False)
+    @cython.boundscheck(True)
     @cython.wraparound(False)
     def _binarize(self, np.ndarray[DTYPE_ft32, ndim=3] ar) -> np.ndarray:
         """ This binarizes the 2D image by its min-max """
@@ -211,7 +219,7 @@ cdef class CyGLCM:
         else:
             return ar.astype(np.uint8)
 
-    @cython.boundscheck(False)
+    @cython.boundscheck(True)
     def _paired_windows(self, np.ndarray[DTYPE_t8, ndim=2] ar):
         """ Creates the pair wise windows.
 
