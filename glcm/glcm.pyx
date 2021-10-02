@@ -37,23 +37,28 @@ cdef enum:
     VAR = 4
 
 cdef class CyGLCM:
-    cdef public DTYPE_t8 radius, bins, diameter
+    cdef public DTYPE_t8 radius, bins, diameter, D2
     cdef public np.ndarray ar
     cdef public np.ndarray features
     cdef public np.ndarray glcm
     cdef public tuple pairs
+    cdef public float CORR_ERROR_VAL
     cdef public char verbose
 
     def __init__(self, np.ndarray[DTYPE_ft32, ndim=3] ar,
                  DTYPE_t8 radius, DTYPE_t8 bins,
                  verbose=True,
-                 pairs=('H', 'V', 'SE', 'NE')):
+                 pairs=('N', 'W', 'NW', 'SW')):
         self.radius = radius
         self.diameter = radius * 2 + 1
         self.bins = bins
         self.ar = ar
-        self.features = np.zeros([ar.shape[0] - self.diameter,
-                                  ar.shape[1] - self.diameter,
+        self.CORR_ERROR_VAL = -2
+
+        # Dimensions of the features are
+        # ROW, COL, CHN, GLCM_FEATURE
+        self.features = np.zeros([<int>(ar.shape[0] - self.diameter - 1),
+                                  <int>(ar.shape[1] - self.diameter - 1),
                                   ar.shape[2], 5],
                                  dtype=np.float32)
         self.glcm = np.zeros([bins, bins], dtype=np.uint8)
@@ -63,69 +68,89 @@ cdef class CyGLCM:
     @cython.boundscheck(False)
     @cython.wraparound(False)
     def create_glcm(self):
+        # This creates the mem_views
         cdef np.ndarray[DTYPE_ft32, ndim=3] ar = self.ar
         cdef np.ndarray[DTYPE_ft32, ndim=4] features = self.features
 
+        # With an input of the ar(float), it binarizes and outputs to ar_bin
+        # TODO: Is it possible to type this?
         cdef np.ndarray ar_bin = self._binarize(ar)
-        cdef DTYPE_t8 chs = ar_bin.shape[2]
+
+        # This is the number of channels of the array
+        # E.g. if RGB, then 3.
+        cdef DTYPE_t8 chs = <DTYPE_t8>ar_bin.shape[2]
+
+        # This initializes the progress bar wrapper
         with tqdm(total=chs * len(self.pairs), disable=not self.verbose,
                   desc=f"GLCM Progress") as pbar:
+
+            # We can treat each channel independently of the GLCM calculation
             for ch in range(chs):
-                pairs = self._pair(ar_bin[..., ch])
-                for pair in pairs:
+
+                # directions is
+                # List of Directions
+                # Each Direction is a tuple of original windows and offset windows
+                # directions: List[Tuple[List[window_i], List[window_j]]
+                directions = self._paired_windows(ar_bin[..., ch])
+
+                for direction in directions:
                     # Each pair is a tuple
                     # Tuple of 2 offset images for GLCM calculation.
-                    self._populate_glcm(pair[0], pair[1], features[:,:,ch,:])
+                    self._populate_glcm(direction[0], direction[1], features[:,:,ch,:])
                     pbar.update()
 
-        return self.features
+        features[..., CONTRAST]    /= (self.diameter ** 2) * 2
+        features[..., ASM]         /= ((self.diameter ** 2) * 2) ** 2
+        features[..., CORRELATION] /= (self.diameter ** 2) * 2
+        return self.features / len(self.pairs)
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
     def _populate_glcm(self,
-                       np.ndarray[DTYPE_t8, ndim=4] pair_i,
-                       np.ndarray[DTYPE_t8, ndim=4] pair_j,
+                       np.ndarray[DTYPE_t8, ndim=4] windows_i,
+                       np.ndarray[DTYPE_t8, ndim=4] windows_j,
                        np.ndarray[DTYPE_ft32, ndim=3] features):
-        """ The ar would be WR, WC, CR, CC
+        """ For each window pair, this populates a full GLCM.
 
-        :param pair_i: WR WC CR CC
-        :param pair_j: WR WC CR CC
+        The ar would be WR, WC, CR, CC
+
+        :param windows_i: WR WC CR CC
+        :param windows_j: WR WC CR CC
         :return:
         """
-        cdef DTYPE_t16 wrs = pair_i.shape[0]
-        cdef DTYPE_t16 wcs = pair_i.shape[1]
+        cdef DTYPE_t16 wrs = <DTYPE_t16>windows_i.shape[0]
+        cdef DTYPE_t16 wcs = <DTYPE_t16>windows_i.shape[1]
         cdef DTYPE_t16 wr, wc;
 
         for wr in range(wrs):
             for wc in range(wcs):
-                self._populate_glcm_single(pair_i[wr, wc],
-                                           pair_j[wr, wc],
-                                           features[wr, wc])
+                # For each window_i = windows_i[wr, wc], window_j = windows_j[wr, wc]
+                # We want to create the glcm and put into features[wr, wc]
+                self._populate_glcm_single(windows_i[wr, wc], windows_j[wr, wc], features[wr, wc])
 
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
     def _populate_glcm_single(self,
-                              np.ndarray[DTYPE_t8, ndim=2] pair_i,
-                              np.ndarray[DTYPE_t8, ndim=2] pair_j,
+                              np.ndarray[DTYPE_t8, ndim=2] window_i,
+                              np.ndarray[DTYPE_t8, ndim=2] window_j,
                               np.ndarray[DTYPE_ft32, ndim=1] features):
         """
 
-        :param pair_i: CR CC
-        :param pair_j: CR CC
+        :param window_i: CR CC
+        :param window_j: CR CC
         :param features: SINGULAR
         :return:
         """
 
-        cdef DTYPE_t8 crs = pair_i.shape[0]
-        cdef DTYPE_t8 ccs = pair_i.shape[1]
         cdef DTYPE_t8 cr, cc
         cdef DTYPE_t8 i = 0
         cdef DTYPE_t8 j = 0
 
-        # n is the size of cell
-        cdef DTYPE_ft32 n = crs * ccs
-
+        # This is the maximum value of G_ij possible
+        # This is multiplied by 2 because we're adding its transpose,
+        # for bi-directionality.
+        
         cdef np.ndarray[DTYPE_t8, ndim=2] glcm = self.glcm
         glcm[:] = 0
 
@@ -135,67 +160,130 @@ cdef class CyGLCM:
         cdef DTYPE_ft32 var_j = 0
         cdef DTYPE_ft32 std = 0
 
-        for cr in range(crs):
-            for cc in range(ccs):
-                i = pair_i[cr, cc]
-                j = pair_j[cr, cc]
+        for cr in range(self.diameter):
+            for cc in range(self.diameter):
+                i = window_i[cr, cc]
+                j = window_j[cr, cc]
                 features[CONTRAST] += ((i - j) ** 2)
                 mean_i += i
                 mean_j += j
                 glcm[i, j] += 1
                 glcm[j, i] += 1  # Symmetric for ASM.
 
-        # /= n because we summed only
-        mean_i /= n
-        mean_j /= n
+        mean_i /= self.diameter ** 2
+        mean_j /= self.diameter ** 2
 
-        # MEAN is the average of i, j
-        features[MEAN] += (mean_i + mean_j) / 2
+        features[MEAN] += <DTYPE_ft32> ((mean_i + mean_j) / 2)
 
-        for cr in range(crs):
-            for cc in range(ccs):
-                i = pair_i[cr, cc]
-                j = pair_j[cr, cc]
+        for cr in range(self.diameter):
+            for cc in range(self.diameter):
+                i = window_i[cr, cc]
+                j = window_j[cr, cc]
                 features[ASM] += glcm[cr, cc] ** 2
                 var_i += (i - mean_i) ** 2
                 var_j += (j - mean_j) ** 2
 
-        var_i /= n
-        var_j /= n
+        var_i /= self.diameter ** 2
+        var_j /= self.diameter ** 2
 
-        features[VAR] += (var_i + var_j) / 2
+        features[VAR] += <DTYPE_ft32> ((var_i + var_j) / 2)
 
         # Preemptive auxiliary value
-        std = sqrt(var_i) * sqrt(var_j)
+        std = <DTYPE_ft32> (sqrt(var_i) * sqrt(var_j))
 
-        for cr in range(crs):
-            for cc in range(ccs):
-                i = pair_i[cr, cc]
-                j = pair_j[cr, cc]
+        for cr in range(self.diameter):
+            for cc in range(self.diameter):
+                i = window_i[cr, cc]
+                j = window_j[cr, cc]
 
                 if std != 0.0:  # Will explode on 0.0
-                    features[CORRELATION] += (i - mean_i) * (j - mean_j) / std
+                    features[CORRELATION] += glcm[cr, cc] * (i - mean_i) * (j - mean_j) / std
+                else:
+                    features[CORRELATION] += float("NaN")
 
-        # Note that because it's a probability, this needs to be /= n
-        features[CONTRAST]    /= n
-        features[CORRELATION] /= n
-        # ASM requires /= n twice as its power wraps its probability.
-        # It needs to be divided because it's using a symmetric GLCM.
-        features[ASM]         /= (n / 2) ** 2
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
     def _binarize(self, np.ndarray[DTYPE_ft32, ndim=3] ar) -> np.ndarray:
         """ This binarizes the 2D image by its min-max """
-        return (((ar - ar.min()) / ar.max()) * (self.bins - 1)).astype(np.uint8)
+        if ar.max() != 0:
+            return ((ar / ar.max()) * (self.bins - 1)).astype(np.uint8)
+        else:
+            return ar.astype(np.uint8)
 
     @cython.boundscheck(False)
-    def _pair(self, np.ndarray[DTYPE_t8, ndim=2] ar):
+    def _paired_windows(self, np.ndarray[DTYPE_t8, ndim=2] ar):
+        """ Creates the pair wise windows.
+
+        Note that this has an offset issue for corner values.
+        Thus it'll cropping out the external bounds.
+
+        E.g.
+        +---------+  Here, O has a lack of 5 directions, considering 8 directions
+        |O        |  Thus, it'll not be considered
+        |         |
+        |         |
+        +---------+
+
+        +---------+  It's trivial to see why the following locations are the only
+        |         |  Places where it's possible to use all 8 directions.
+        | OOOOOOO |
+        |         |  Even though the user may specify a set of directions that may
+        +---------+  allow a larger valid bound, we will assume this scenario to
+        simplify implementation!
+
+        The algorithm here creates pair-wise by simply having the original window and
+        the offset window
+
+        +-----+          +-----+   |   +-----+          +-----+   |
+        |     |          |OOO  |   |   |     |          | OOO |   |
+        | OOO |   NWest  |OOO  |   |   | OOO |   North  | OOO |   |
+        | OOO | <-Pair-> |OOO  |   |   | OOO | <-Pair-> | OOO |   |
+        | OOO |          |     |   |   | OOO |          |     |   |
+        |     |          |     |   |   |     |          |     |   |
+        +-----+          +-----+   |   +-----+          +-----+   |
+                                   |                              |
+        ---------------------------+------------------------------+
+                                   |
+         +-----+          +-----+  |  Notice that if did ALL 8 directions,
+         |     |          |     |  |  you will find that the algorithm will
+         | OOO |   West   |OOO  |  |  have redundancy. This is the reason
+         | OOO | <-Pair-> |OOO  |  |  why NE, E, SE, S are missing.
+         | OOO |          |OOO  |  |
+         |     |          |     |  |  Take for example
+         +-----+          +-----+  |  +-----+ Point O calculates GLCM on all
+                                   |  |GGG  | 8 Directions, G
+        ---------------------------+  |GO#  |
+                                   |  |GGG  | In particular, (O, #) will be redundant
+         +-----+          +-----+  |  +-----+
+         |     |          |     |  |  +-----+ Moving Point O to the right,
+         | OOO |   SWest  |     |  |  | GGG |
+         | OOO | <-Pair-> |OOO  |  |  | #OG | Notice that (O, #) is the same
+         | OOO |          |OOO  |  |  | GGG | GLCM pair as previously.
+         |     |          |OOO  |  |  +-----+
+         +-----+          +-----+  |          This is because the GLCM is bi-directional
+
+        This redundancy is accounted for in the formula below.
+
+        So "S" is also interpreted as "N". "SE" as "NW" and so on.
+        This doesn't cause duplicates.
+
+        :param ar: The binarized array
+        :return: Returns a List of Tuple[Pair A, Pair B]
+        """
 
         ar_w = view_as_windows(ar, (self.diameter, self.diameter))
         pairs = []
-        if "H" in self.pairs:  pairs.append((ar_w[:-1, :-1], ar_w[:-1, 1:]))
-        if "V" in self.pairs:  pairs.append((ar_w[:-1, :-1], ar_w[1:, :-1]))
-        if "SE" in self.pairs: pairs.append((ar_w[:-1, :-1], ar_w[1:, 1:]))
-        if "NE" in self.pairs: pairs.append((ar_w[1:, :-1], ar_w[1:, 1:]))
+
+        original = ar_w[1:-1, 1:-1]
+
+        if ("N"  in self.pairs) or ("S"  in self.pairs):
+            pairs.append((original, ar_w[0:-2, 1:-1]))
+        if ("W"  in self.pairs) or ("E"  in self.pairs):
+            pairs.append((original, ar_w[1:-1, 2:]))
+        if ("NW" in self.pairs) or ("SE" in self.pairs):
+            pairs.append((original, ar_w[0:-2, 2:]))
+        if ("SW" in self.pairs) or ("NE" in self.pairs):
+            pairs.append((original, ar_w[2:, 2:]))
+
         return pairs
