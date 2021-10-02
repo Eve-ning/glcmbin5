@@ -106,9 +106,9 @@ cdef class CyGLCM:
         features[..., ASM]         /= self.diameter ** 6
         features[..., CORRELATION] /= self.diameter ** 2
 
-        # features[..., CONTRAST]    /= (self.bins - 1) ** 2
-        # features[..., MEAN]        /= self.bins - 1
-        # features[..., VAR]         /= (self.bins - 1) ** 2
+        features[..., CONTRAST]    /= (self.bins - 1) ** 2
+        features[..., MEAN]        /= self.bins - 1
+        features[..., VAR]         /= (self.bins - 1) ** 2
         # features[..., CORRELATION] = (features[..., CORRELATION] + 1) / 2
 
         return self.features / len(self.pairs)
@@ -207,8 +207,8 @@ cdef class CyGLCM:
 
                 if std != 0.0:  # Will explode on 0.0
                     features[CORRELATION] += (glcm[i, j] / 2) * (i - mean_i) * (j - mean_j) / std
-                else:
-                    features[CORRELATION] += float("NaN")
+                # else:
+                #     features[CORRELATION] += float("NaN")
 
     @cython.boundscheck(True)
     @cython.wraparound(False)
