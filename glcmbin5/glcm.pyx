@@ -37,7 +37,7 @@ cdef enum:
     VAR = 4
 
 cdef class CyGLCM:
-    cdef public DTYPE_t8 radius, bins, diameter, D2
+    cdef public DTYPE_t8 radius, bins, diameter, D2, step_size
     cdef public np.ndarray ar
     cdef public np.ndarray features
     cdef public np.ndarray glcm
@@ -48,8 +48,10 @@ cdef class CyGLCM:
     def __init__(self, np.ndarray[DTYPE_ft32, ndim=3] ar,
                  DTYPE_t8 radius, DTYPE_t8 bins,
                  verbose=True,
+                 step_size=1,
                  pairs=('N', 'W', 'NW', 'SW')):
         self.radius = radius
+        self.step_size = step_size
         self.diameter = radius * 2 + 1
         self.bins = bins
         self.ar = ar
@@ -57,15 +59,15 @@ cdef class CyGLCM:
 
         # Dimensions of the features are
         # ROW, COL, CHN, GLCM_FEATURE
-        self.features = np.zeros([<int>(ar.shape[0] - self.diameter - 1),
-                                  <int>(ar.shape[1] - self.diameter - 1),
+        self.features = np.zeros([<int>(ar.shape[0] - self.diameter - 1 - (<int> step_size - 1) * 2),
+                                  <int>(ar.shape[1] - self.diameter - 1 - (<int> step_size - 1) * 2),
                                   ar.shape[2], 5],
                                  dtype=np.float32)
         self.glcm = np.zeros([bins, bins], dtype=np.float32)
         self.pairs = pairs
         self.verbose = verbose
 
-    @cython.boundscheck(True)
+    @cython.boundscheck(False)
     @cython.wraparound(False)
     def create_glcm(self):
         # This creates the mem_views
@@ -73,8 +75,7 @@ cdef class CyGLCM:
         cdef np.ndarray[DTYPE_ft32, ndim=4] features = self.features
 
         # With an input of the ar(float), it binarizes and outputs to ar_bin
-        # TODO: Is it possible to type this?
-        cdef np.ndarray ar_bin = self._binarize(ar)
+        cdef np.ndarray[DTYPE_t8, ndim=3] ar_bin = self._binarize(ar)
 
         # This is the number of channels of the array
         # E.g. if RGB, then 3.
@@ -104,11 +105,11 @@ cdef class CyGLCM:
         features[..., CONTRAST]    /= (self.bins - 1) ** 2
         features[..., MEAN]        /= self.bins - 1
         features[..., VAR]         /= (self.bins - 1) ** 2
-        features[..., CORRELATION] = (features[..., CORRELATION] + 1) / 2
+        features[..., CORRELATION] = (features[..., CORRELATION] + len(self.pairs)) / 2
 
         return self.features / len(self.pairs)
 
-    @cython.boundscheck(True)
+    @cython.boundscheck(False)
     @cython.wraparound(False)
     def _populate_glcm(self,
                        np.ndarray[DTYPE_t8, ndim=4] windows_i,
@@ -124,7 +125,8 @@ cdef class CyGLCM:
         """
         cdef DTYPE_t16 wrs = <DTYPE_t16>windows_i.shape[0]
         cdef DTYPE_t16 wcs = <DTYPE_t16>windows_i.shape[1]
-        cdef DTYPE_t16 wr, wc;
+        cdef DTYPE_t16 wr = 0;
+        cdef DTYPE_t16 wc = 0;
 
         for wr in range(wrs):
             for wc in range(wcs):
@@ -132,10 +134,10 @@ cdef class CyGLCM:
                 # We want to create the glcm and put into features[wr, wc]
                 self._populate_glcm_single(windows_i[wr, wc], windows_j[wr, wc], features[wr, wc])
 
-
-    @cython.boundscheck(True)
+    @cython.cdivision(True)
+    @cython.boundscheck(False)
     @cython.wraparound(False)
-    def _populate_glcm_single(self,
+    cdef _populate_glcm_single(self,
                               np.ndarray[DTYPE_t8, ndim=2] window_i,
                               np.ndarray[DTYPE_t8, ndim=2] window_j,
                               np.ndarray[DTYPE_ft32, ndim=1] features):
@@ -150,6 +152,7 @@ cdef class CyGLCM:
         cdef DTYPE_t8 cr, cc
         cdef DTYPE_t8 i = 0
         cdef DTYPE_t8 j = 0
+
 
         # This is the maximum value of G_ij possible
         # This is multiplied by 2 because we're adding its transpose,
@@ -172,11 +175,13 @@ cdef class CyGLCM:
             for cc in range(self.diameter):
                 i = window_i[cr, cc]
                 j = window_j[cr, cc]
+                mean_i += i
+                mean_j += j
+                glcm[i, j] += 1 / 2 * self.diameter ** 2
+                glcm[j, i] += 1 / 2 * self.diameter ** 2 # Symmetric for ASM.
 
-                glcm[i, j] += 1
-                glcm[j, i] += 1  # Symmetric for ASM.
-
-        glcm /= 2 * self.diameter ** 2
+        mean_i /= self.diameter ** 2
+        mean_j /= self.diameter ** 2
 
         # For each cell in the GLCM
 
@@ -184,11 +189,6 @@ cdef class CyGLCM:
             for cc in range(self.bins):
                 features[CONTRAST] += glcm[cr, cc] * ((i - j) ** 2)
                 features[ASM] += glcm[cr, cc] ** 2
-                mean_i += glcm[cr, cc] * cr
-                mean_j += glcm[cr, cc] * cc
-
-        for cr in range(self.bins):
-            for cc in range(self.bins):
                 var_i += glcm[cr, cc] * (cr - mean_i) ** 2
                 var_j += glcm[cr, cc] * (cc - mean_j) ** 2
 
@@ -203,7 +203,7 @@ cdef class CyGLCM:
         features[VAR] += <DTYPE_ft32> ((var_i + var_j) / 2)
 
 
-    @cython.boundscheck(True)
+    @cython.boundscheck(False)
     @cython.wraparound(False)
     def _binarize(self, np.ndarray[DTYPE_ft32, ndim=3] ar) -> np.ndarray:
         """ This binarizes the 2D image by its min-max """
@@ -212,7 +212,7 @@ cdef class CyGLCM:
         else:
             return ar.astype(np.uint8)
 
-    @cython.boundscheck(True)
+    @cython.boundscheck(False)
     def _paired_windows(self, np.ndarray[DTYPE_t8, ndim=2] ar):
         """ Creates the pair wise windows.
 
@@ -275,16 +275,16 @@ cdef class CyGLCM:
 
         ar_w = view_as_windows(ar, (self.diameter, self.diameter))
         pairs = []
-
-        original = ar_w[1:-1, 1:-1]
+        cdef DTYPE_t8 s = self.step_size
+        original = ar_w[s:-s, s:-s]
 
         if ("N"  in self.pairs) or ("S"  in self.pairs):
-            pairs.append((original, ar_w[0:-2, 1:-1]))
+            pairs.append((original, ar_w[:-1-s, s:-s]))
         if ("W"  in self.pairs) or ("E"  in self.pairs):
-            pairs.append((original, ar_w[1:-1, 2:]))
+            pairs.append((original, ar_w[s:-s, 1+s:]))
         if ("NW" in self.pairs) or ("SE" in self.pairs):
-            pairs.append((original, ar_w[0:-2, 2:]))
+            pairs.append((original, ar_w[:-1-s, 1+s:]))
         if ("SW" in self.pairs) or ("NE" in self.pairs):
-            pairs.append((original, ar_w[2:, 2:]))
+            pairs.append((original, ar_w[1+s:, 1+s:]))
 
         return pairs
