@@ -3889,7 +3889,7 @@ static PyObject *__pyx_f_8glcmbin5_4glcm_6CyGLCM__populate_glcm_single(struct __
  *                 j = window_j[cr, cc]
  *                 mean_i += i             # <<<<<<<<<<<<<<
  *                 mean_j += j
- *                 glcm[i, j] += 1 / 2 * self.diameter ** 2
+ *                 glcm[i, j] += <DTYPE_ft32> (1 / (2 * <DTYPE_ft32>(self.diameter ** 2)))
  */
       __pyx_v_mean_i = (__pyx_v_mean_i + __pyx_v_i);
 
@@ -3897,37 +3897,37 @@ static PyObject *__pyx_f_8glcmbin5_4glcm_6CyGLCM__populate_glcm_single(struct __
  *                 j = window_j[cr, cc]
  *                 mean_i += i
  *                 mean_j += j             # <<<<<<<<<<<<<<
- *                 glcm[i, j] += 1 / 2 * self.diameter ** 2
- *                 glcm[j, i] += 1 / 2 * self.diameter ** 2 # Symmetric for ASM.
+ *                 glcm[i, j] += <DTYPE_ft32> (1 / (2 * <DTYPE_ft32>(self.diameter ** 2)))
+ *                 glcm[j, i] += <DTYPE_ft32> (1 / (2 * <DTYPE_ft32>(self.diameter ** 2))) # Symmetric for ASM.
  */
       __pyx_v_mean_j = (__pyx_v_mean_j + __pyx_v_j);
 
       /* "glcmbin5/glcm.pyx":180
  *                 mean_i += i
  *                 mean_j += j
- *                 glcm[i, j] += 1 / 2 * self.diameter ** 2             # <<<<<<<<<<<<<<
- *                 glcm[j, i] += 1 / 2 * self.diameter ** 2 # Symmetric for ASM.
+ *                 glcm[i, j] += <DTYPE_ft32> (1 / (2 * <DTYPE_ft32>(self.diameter ** 2)))             # <<<<<<<<<<<<<<
+ *                 glcm[j, i] += <DTYPE_ft32> (1 / (2 * <DTYPE_ft32>(self.diameter ** 2))) # Symmetric for ASM.
  * 
  */
       __pyx_t_8 = __pyx_v_i;
       __pyx_t_9 = __pyx_v_j;
-      *__Pyx_BufPtrStrided2d(__pyx_t_8glcmbin5_4glcm_DTYPE_ft32 *, __pyx_pybuffernd_glcm.rcbuffer->pybuffer.buf, __pyx_t_8, __pyx_pybuffernd_glcm.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_glcm.diminfo[1].strides) += (0 * __Pyx_pow_long(((long)__pyx_v_self->diameter), 2));
+      *__Pyx_BufPtrStrided2d(__pyx_t_8glcmbin5_4glcm_DTYPE_ft32 *, __pyx_pybuffernd_glcm.rcbuffer->pybuffer.buf, __pyx_t_8, __pyx_pybuffernd_glcm.diminfo[0].strides, __pyx_t_9, __pyx_pybuffernd_glcm.diminfo[1].strides) += ((__pyx_t_8glcmbin5_4glcm_DTYPE_ft32)(1.0 / (2.0 * ((__pyx_t_8glcmbin5_4glcm_DTYPE_ft32)__Pyx_pow_long(((long)__pyx_v_self->diameter), 2)))));
 
       /* "glcmbin5/glcm.pyx":181
  *                 mean_j += j
- *                 glcm[i, j] += 1 / 2 * self.diameter ** 2
- *                 glcm[j, i] += 1 / 2 * self.diameter ** 2 # Symmetric for ASM.             # <<<<<<<<<<<<<<
+ *                 glcm[i, j] += <DTYPE_ft32> (1 / (2 * <DTYPE_ft32>(self.diameter ** 2)))
+ *                 glcm[j, i] += <DTYPE_ft32> (1 / (2 * <DTYPE_ft32>(self.diameter ** 2))) # Symmetric for ASM.             # <<<<<<<<<<<<<<
  * 
  *         mean_i /= self.diameter ** 2
  */
       __pyx_t_9 = __pyx_v_j;
       __pyx_t_8 = __pyx_v_i;
-      *__Pyx_BufPtrStrided2d(__pyx_t_8glcmbin5_4glcm_DTYPE_ft32 *, __pyx_pybuffernd_glcm.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_glcm.diminfo[0].strides, __pyx_t_8, __pyx_pybuffernd_glcm.diminfo[1].strides) += (0 * __Pyx_pow_long(((long)__pyx_v_self->diameter), 2));
+      *__Pyx_BufPtrStrided2d(__pyx_t_8glcmbin5_4glcm_DTYPE_ft32 *, __pyx_pybuffernd_glcm.rcbuffer->pybuffer.buf, __pyx_t_9, __pyx_pybuffernd_glcm.diminfo[0].strides, __pyx_t_8, __pyx_pybuffernd_glcm.diminfo[1].strides) += ((__pyx_t_8glcmbin5_4glcm_DTYPE_ft32)(1.0 / (2.0 * ((__pyx_t_8glcmbin5_4glcm_DTYPE_ft32)__Pyx_pow_long(((long)__pyx_v_self->diameter), 2)))));
     }
   }
 
   /* "glcmbin5/glcm.pyx":183
- *                 glcm[j, i] += 1 / 2 * self.diameter ** 2 # Symmetric for ASM.
+ *                 glcm[j, i] += <DTYPE_ft32> (1 / (2 * <DTYPE_ft32>(self.diameter ** 2))) # Symmetric for ASM.
  * 
  *         mean_i /= self.diameter ** 2             # <<<<<<<<<<<<<<
  *         mean_j /= self.diameter ** 2

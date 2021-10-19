@@ -177,8 +177,8 @@ cdef class CyGLCM:
                 j = window_j[cr, cc]
                 mean_i += i
                 mean_j += j
-                glcm[i, j] += 1 / 2 * self.diameter ** 2
-                glcm[j, i] += 1 / 2 * self.diameter ** 2 # Symmetric for ASM.
+                glcm[i, j] += <DTYPE_ft32> (1 / (2 * <DTYPE_ft32>(self.diameter ** 2)))
+                glcm[j, i] += <DTYPE_ft32> (1 / (2 * <DTYPE_ft32>(self.diameter ** 2))) # Symmetric for ASM.
 
         mean_i /= self.diameter ** 2
         mean_j /= self.diameter ** 2
