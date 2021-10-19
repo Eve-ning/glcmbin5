@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: glcmbin5
-Version: 0.1.0a0
+Version: 0.1.4
 Summary: Binned Cython 5 Feature GLCM
 Home-page: https://github.com/Eve-ning/glcm
 Author: evening
@@ -10,7 +10,15 @@ Description: # Binned Cython 5 Feature GLCM
         
         ![Result](result.jpg)
         
-        **Photo by Flo Maderebner from Pexels**
+        [**Photo by Flo Maderebner from Pexels**](https://www.pexels.com/@fmaderebner)
+        
+        800 Times faster, the above image takes 5.7 Days to process, compared to 9.8 Minutes with `glcmbin5`
+        
+        *Performance will vary with devices*
+        
+        ```
+        pip install glcmbin5
+        ```
         
         ## Motivation
         
@@ -18,11 +26,11 @@ Description: # Binned Cython 5 Feature GLCM
         
         ### Speed
         
-        This is **several magnitudes** faster than using ``skimage.feature.graycomatrix`` and ``graycoprops``
+        This is >800 times faster than using ``skimage.feature.graycomatrix`` and ``graycoprops``
         because this is Cython optimized.
         
         With a *2000x1000x3* image, it takes around 2 minutes.
-        Compared to a few hours with ``skimage``
+        Compared to a **33 hours** with ``skimage``
         
         ```
         GLCM Progress: 100%|â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆ| 12/12 [02:27<00:00, 12.30s/it]
@@ -34,11 +42,13 @@ Description: # Binned Cython 5 Feature GLCM
         large GLCM.
         
         With this algorithm, I omit generating the whole GLCM, instead, it's integrated in
-        the GLCM feature calculation. Memory used is freed asap. 
+        the GLCM feature calculation. Memory used is freed asap.
         
         Plus, decreasing the GLCM size improves performance significantly.
         
         ## Example
+        
+        You can also see an example in [`/examples`](https://github.com/Eve-ning/glcm/tree/master/examples)
         
         ```python
         from glcm.glcm import CyGLCM
@@ -146,10 +156,47 @@ Description: # Binned Cython 5 Feature GLCM
         
         # Acknowledgements
         
-        - Dr. Ji-Jon Sit for hosting the parent project `Eve-ning/FRModel` which lead to this algorithm
-        - Wang Ji Fei for discovering GLCM Binning optimization.
+        - [Dr. Ji-Jon Sit](https://dr.ntu.edu.sg/cris/rp/rp00175) for hosting the parent project [`Eve-ning/FRModel`](https://github.com/Eve-ning/FRModel) which lead to this algorithm
+        - [Wang Ji Fei](https://fass.nus.edu.sg/geog/people/wang-jifei/) for discovering GLCM Binning optimization.
         - [GLCM Texture: A Tutorial v. 3.0 March 2017](https://prism.ucalgary.ca/handle/1880/51900) for providing a
         simple tutorial to guide this implementation.
+        
+        
+        # Annex
+        
+        ## Speed Benchmark with `skimage.feature.greycomatrix`
+        
+        ```python
+        
+        import time
+        
+        import PIL.Image
+        import numpy as np
+        from matplotlib import pyplot as plt
+        from skimage.feature import greycomatrix, greycoprops
+        #%%
+        
+        image = np.asarray(PIL.Image.open("sample.jpg"))[::2,::2,0]
+        
+        s = time.time()
+        for i in range(10000):
+            glcm = greycomatrix(np.random.randint(0, 192, [5, 5]).astype(np.uint8), [1], [0])
+            g = greycoprops(glcm, 'contrast')
+            g = greycoprops(glcm, 'dissimilarity')
+            g = greycoprops(glcm, 'energy')
+            g = greycoprops(glcm, 'ASM')
+            g = greycoprops(glcm, 'correlation')
+        
+        e = time.time()
+        
+        # / 10000 for each window
+        # 1116 * 1991 because the image has that many windows
+        # 3 for 3 channels
+        # /147 for 2m27s of my current timing
+        # ~ 832.0464063705289
+        print(((e-s) * 8 / 10000 * 1116 * 1991 * 3)/147)
+        ```
+        
 Platform: UNKNOWN
 Classifier: Development Status :: 3 - Alpha
 Classifier: Programming Language :: Python :: 3

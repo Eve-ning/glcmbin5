@@ -1,0 +1,2 @@
+recursive-include glcm *.pyd
+recursive-include glcm *.pyx

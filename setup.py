@@ -1,3 +1,4 @@
+import numpy as np
 import setuptools
 
 with open("README.md", "r") as fh:
@@ -5,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="glcmbin5",
-    version="0.1.0a",
+    version="0.1.4",
     author="evening",
     author_email="dev_evening@hotmail.com",
     description="Binned Cython 5 Feature GLCM",
@@ -24,5 +25,6 @@ setuptools.setup(
         'numpy',
         'tqdm',
         'cython',
-    ]
+    ],
+    include_dirs=np.get_include()
 )

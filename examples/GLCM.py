@@ -4,7 +4,7 @@ from time import time
 import PIL.Image
 import matplotlib.pyplot as plt
 
-from glcm.glcm import CyGLCM
+from glcm import CyGLCM
 import numpy as np
 
 s = time()

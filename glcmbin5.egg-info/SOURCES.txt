@@ -1,8 +1,14 @@
+MANIFEST.in
 README.md
+pyproject.toml
 setup.py
 glcm/__init__.py
+glcm/glcm.cp38-win_amd64.pyd
+glcm/glcm.pyx
 glcmbin5.egg-info/PKG-INFO
 glcmbin5.egg-info/SOURCES.txt
 glcmbin5.egg-info/dependency_links.txt
 glcmbin5.egg-info/requires.txt
 glcmbin5.egg-info/top_level.txt
+test/__init__.py
+test/bounds_test.py

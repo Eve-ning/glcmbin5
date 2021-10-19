@@ -61,7 +61,7 @@ cdef class CyGLCM:
                                   <int>(ar.shape[1] - self.diameter - 1),
                                   ar.shape[2], 5],
                                  dtype=np.float32)
-        self.glcm = np.zeros([bins, bins], dtype=np.uint8)
+        self.glcm = np.zeros([bins, bins], dtype=np.float32)
         self.pairs = pairs
         self.verbose = verbose
 
@@ -101,15 +101,10 @@ cdef class CyGLCM:
 
         # The following statements will rescale the features to [0,1]
         # To fully understand why I do this, refer to my research journal.
-
-        features[..., CONTRAST]    /= self.diameter ** 2
-        features[..., ASM]         /= self.diameter ** 6
-        features[..., CORRELATION] /= self.diameter ** 2
-
         features[..., CONTRAST]    /= (self.bins - 1) ** 2
         features[..., MEAN]        /= self.bins - 1
         features[..., VAR]         /= (self.bins - 1) ** 2
-        # features[..., CORRELATION] = (features[..., CORRELATION] + 1) / 2
+        features[..., CORRELATION] = (features[..., CORRELATION] + 1) / 2
 
         return self.features / len(self.pairs)
 
@@ -160,7 +155,7 @@ cdef class CyGLCM:
         # This is multiplied by 2 because we're adding its transpose,
         # for bi-directionality.
         
-        cdef np.ndarray[DTYPE_t8, ndim=2] glcm = self.glcm
+        cdef np.ndarray[DTYPE_ft32, ndim=2] glcm = self.glcm
         glcm[:] = 0
 
         cdef DTYPE_ft32 mean_i = 0
@@ -168,47 +163,45 @@ cdef class CyGLCM:
         cdef DTYPE_ft32 var_i = 0
         cdef DTYPE_ft32 var_j = 0
         cdef DTYPE_ft32 std = 0
+        cdef DTYPE_ft32 corr_num = 0
+        cdef DTYPE_ft32 corr_den = 0
 
+
+        # We populate the GLCM here
         for cr in range(self.diameter):
             for cc in range(self.diameter):
                 i = window_i[cr, cc]
                 j = window_j[cr, cc]
-                features[CONTRAST] += ((i - j) ** 2)
-                mean_i += i
-                mean_j += j
+
                 glcm[i, j] += 1
                 glcm[j, i] += 1  # Symmetric for ASM.
 
-        mean_i /= self.diameter ** 2
-        mean_j /= self.diameter ** 2
+        glcm /= 2 * self.diameter ** 2
 
-        features[MEAN] += <DTYPE_ft32> ((mean_i + mean_j) / 2)
+        # For each cell in the GLCM
 
-        for cr in range(self.diameter):
-            for cc in range(self.diameter):
-                i = window_i[cr, cc]
-                j = window_j[cr, cc]
-                features[ASM] += (glcm[i, j] / 2) ** 2
-                var_i += (i - mean_i) ** 2
-                var_j += (j - mean_j) ** 2
+        for cr in range(self.bins):
+            for cc in range(self.bins):
+                features[CONTRAST] += glcm[cr, cc] * ((i - j) ** 2)
+                features[ASM] += glcm[cr, cc] ** 2
+                mean_i += glcm[cr, cc] * cr
+                mean_j += glcm[cr, cc] * cc
 
-        var_i /= self.diameter ** 2
-        var_j /= self.diameter ** 2
+        for cr in range(self.bins):
+            for cc in range(self.bins):
+                var_i += glcm[cr, cc] * (cr - mean_i) ** 2
+                var_j += glcm[cr, cc] * (cc - mean_j) ** 2
 
-        features[VAR] += <DTYPE_ft32> ((var_i + var_j) / 2)
-
-        # Preemptive auxiliary value
         std = <DTYPE_ft32> (sqrt(var_i) * sqrt(var_j))
 
-        for cr in range(self.diameter):
-            for cc in range(self.diameter):
-                i = window_i[cr, cc]
-                j = window_j[cr, cc]
+        if std != 0:
+            for cr in range(self.bins):
+                for cc in range(self.bins):
+                    features[CORRELATION] += glcm[cr, cc] * (cr - mean_i) * (cc - mean_j) / std
 
-                if std != 0.0:  # Will explode on 0.0
-                    features[CORRELATION] += (glcm[i, j] / 2) * (i - mean_i) * (j - mean_j) / std
-                # else:
-                #     features[CORRELATION] += float("NaN")
+        features[MEAN] += <DTYPE_ft32> ((mean_i + mean_j) / 2)
+        features[VAR] += <DTYPE_ft32> ((var_i + var_j) / 2)
+
 
     @cython.boundscheck(True)
     @cython.wraparound(False)

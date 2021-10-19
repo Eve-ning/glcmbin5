@@ -4,7 +4,7 @@ import numpy
 
 setup(
     name='glcm',
-    ext_modules=cythonize("glcm/**/*.pyx", build_dir="cython-build",
+    ext_modules=cythonize("glcmbin5/**/*.pyx", build_dir="cython-build",
                           annotate=True),
     include_dirs=[numpy.get_include()]
 )
