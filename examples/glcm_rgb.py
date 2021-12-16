@@ -17,14 +17,14 @@ import matplotlib.pyplot as plt
 from glcmbin5 import CyGLCM
 import numpy as np
 
-DIVISION = 2
+DIVISION = 10
 FILE_NAME = "sample.jpg"
 
 GLCM_RADIUS = 1
 GLCM_BINS = 16
 GLCM_STEPSIZE = 1
 
-FIGURE_SIZE = (12,25)
+FIGURE_SIZE = (12,12)
 
 s = time()
 img = PIL.Image.open(FILE_NAME)
