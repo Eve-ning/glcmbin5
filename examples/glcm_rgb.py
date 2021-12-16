@@ -24,7 +24,7 @@ GLCM_RADIUS = 1
 GLCM_BINS = 16
 GLCM_STEPSIZE = 1
 
-FIGURE_SIZE = (12,25)
+FIGURE_SIZE = (12,12)
 
 s = time()
 img = PIL.Image.open(FILE_NAME)
