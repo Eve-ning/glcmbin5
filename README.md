@@ -137,7 +137,7 @@ please kindly cite
   year = {2021},
   publisher = {GitHub},
   journal = {GitHub Repository},
-  howpublished = {\url{https://github.com/Eve-ning/glcm}},
+  howpublished = {\url{https://github.com/Eve-ning/glcmbin5}},
 }
 ```
 
