@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from glcmbin5 import CyGLCM
 import numpy as np
 
-DIVISION = 2
+DIVISION = 10
 FILE_NAME = "sample.jpg"
 
 GLCM_RADIUS = 1
