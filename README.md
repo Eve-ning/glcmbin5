@@ -4,39 +4,48 @@
 
 [**Photo by Flo Maderebner from Pexels**](https://www.pexels.com/@fmaderebner)
 
-800 Times faster, the above image takes 5.7 Days to process, compared to 9.8 Minutes with `glcmbin5`
+400 Times faster, the above image takes 6+ Days to process, compared to 24 Minutes with `glcmbin5` with `bins=16`. YMMV
 
-*Performance will vary with devices*
+## Installation
 
+I recommend to install this via forking. The `pip` version may be unstable.
+
+Run this command with the `c_setup.py` here
 ```
-pip install glcmbin5
+python c_setup.py build_ext --inplace
 ```
 
-## Motivation
+## Main Features
 
-There are 2 main improvements, speed and memory size
+- Implemented in `Cython`, means you get C-Lang Speed on Python
+- 2/4/6/8-directional GLCM, in the case where orientation doesn't matter
+- Memory Optimized, calculations are **per window**, thus a large intermediate GLCM isn't used, saving GBs of memory.
+
+**Pitfalls**
+
+This doesn't work with parallel processing for some reason, I couldn't get it to work unfortunately.
+
+If you derived this work to make it parallel, please let me know! I would love to use it.
 
 ### Speed
 
-This is >800 times faster than using ``skimage.feature.graycomatrix`` and ``graycoprops``
-because this is Cython optimized.
+This is  ~400 times faster than using ``skimage.feature.graycomatrix`` and ``graycoprops``
+because this is Cython optimized, YMMV.
 
-With a *2000x1000x3* image, it takes around 2 minutes.
-Compared to a **33 hours** with ``skimage``
+With a *2000x1000x3* image, it takes around 6+ minutes.
+Compared to **39 hours** with ``skimage``
 
 ```
-GLCM Progress: 100%|██████████| 12/12 [02:27<00:00, 12.30s/it]
+GLCM Progress: 100%|██████████| 12/12 [06:49<00:00, 34.09s/it]
 ```
 
 ### Memory Size
 
-If you don't *bin* the array before calculating GLCM, you'll end up with an extremely
-large GLCM.
+**Binning** the input array reduces size of GLCM, also increases performance.
+Though there's no substantial evidence of it improving nor deproving results.
 
 With this algorithm, I omit generating the whole GLCM, instead, it's integrated in
 the GLCM feature calculation. Memory used is freed asap.
-
-Plus, decreasing the GLCM size improves performance significantly.
 
 ## Example
 
@@ -73,7 +82,7 @@ glcm = CyGLCM(ar.astype(np.float32),
 - `ndim = 4`
 - `shape=(in_dim0, in_dim1, channel, features)`
 - Methods:
-  - Contrast 
+  - Homogeneity
   - Correlation
   - Angular Second Moment
   - GLCM Mean
@@ -89,9 +98,7 @@ The progress bar value is the current pair calculated.
 
 The resulting GLCM array will be smaller than the original.
 
-*GLCM Dimension = Dimension - (2 * radius + 1) = Dimension - Diameter*
-
-The + 1 comes from the pairing.
+*GLCM Dimension = Dimension - (2 * radius + step_size) = Dimension - Diameter*
 
 ### Data Type `float32`
 
@@ -110,25 +117,13 @@ Many features are not significantly orthogonal, hence more will introduce redund
 
 Chosen methods are for simplicity and efficiency in coding. 
 
+``0.1.5`` swapped Contrast for Homogeneity as it may be more orthogonal.
+
 ## Binning
 
 Arrays are **Binned** before going through GLCM.
 
 All arrays will be processed to integer values `[0,bin-1]` band-independently.
-
-# Custom Cython Build
-
-Run this command with the `c_setup.py` here
-```
-python c_setup.py build_ext --inplace
-```
-
-# What's the magic?
-
-There are several optimizations
-
-1) It's written mainly in Cython (with little required Python calls)
-2) Binning before running the GLCM decreases required GLCM calls
 
 # Citation
 
@@ -154,37 +149,3 @@ please kindly cite
 simple tutorial to guide this implementation.
 
 
-# Annex
-
-## Speed Benchmark with `skimage.feature.greycomatrix`
-
-```python
-
-import time
-
-import PIL.Image
-import numpy as np
-from matplotlib import pyplot as plt
-from skimage.feature import greycomatrix, greycoprops
-#%%
-
-image = np.asarray(PIL.Image.open("sample.jpg"))[::2,::2,0]
-
-s = time.time()
-for i in range(10000):
-    glcm = greycomatrix(np.random.randint(0, 192, [5, 5]).astype(np.uint8), [1], [0])
-    g = greycoprops(glcm, 'contrast')
-    g = greycoprops(glcm, 'dissimilarity')
-    g = greycoprops(glcm, 'energy')
-    g = greycoprops(glcm, 'ASM')
-    g = greycoprops(glcm, 'correlation')
-
-e = time.time()
-
-# / 10000 for each window
-# 1116 * 1991 because the image has that many windows
-# 3 for 3 channels
-# /147 for 2m27s of my current timing
-# ~ 832.0464063705289
-print(((e-s) * 8 / 10000 * 1116 * 1991 * 3)/147)
-```
