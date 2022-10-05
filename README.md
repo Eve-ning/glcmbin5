@@ -1,5 +1,11 @@
 # Binned Cython 5 Feature GLCM
 
+## Notice
+
+This project has mainly migrated to https://github.com/Eve-ning/glcm-cupy which has many more new features & optimization improvements.
+
+This repository will be left here for archival purposes. 
+
 ![Result](result.jpg)
 
 [**Photo by Flo Maderebner from Pexels**](https://www.pexels.com/@fmaderebner)
